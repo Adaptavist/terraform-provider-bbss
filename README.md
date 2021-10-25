@@ -7,11 +7,11 @@ Run Bitbucket pipelines straight from Terraform!
 ```terraform
 provider "bbss" {
   owner      = "the-owner-account"
-  repository = "youre-repo-slug"
+  repository = "repo-slug"
 }
 
 resource "bbss_item" "this" {
-  product   = "youre-repo-slug"
+  product   = "repo-slug"
   version   = "v1.0.0"
   variables = {
     VAR_NAME = "VAR_VALUE"
@@ -68,6 +68,12 @@ output "service_user_prod" {
 We strongly recommend you have a backend or commit the state file when using this provider, otherwise Terraform will
 keep running your pipelines and using all your units up!
 
+## Import
+
+```bash
+terraform import bbss_item.$key $uuid
+```
+
 ## Supporting outputs
 
 Currently, output support is a quick and dirty hack using substrings and JSON decoding which could and should be
@@ -76,64 +82,7 @@ improved, but for now here's the current convention.
 Output from your pipelines should render like so.
 
 ```text
---- OUTPUT JSON START ---
+---OUTPUTS---
 YOUR JSON OUTPUT HERE
---- OUTPUT JSON STOP ---
-```
-
-This isn't easily achieved in Bitbucket pipelines as it will print your command because printing its output causing
-unwanted behavior. So our best advice is to create a wrapper script to print your outputs and call it from your pipeline
-
-- similar to below.
-
-__terraform-output.sh__
-
-```bash
-#!/usr/bin/env sh
-echo --- OUTPUT JSON START ---
-terraform output -json
-echo --- OUTPUT JSON STOP ---
-```
-
-__bitbucket-pipelines.yml__
-
-```bash
-pipelines:
-  custom:
-    do_a_thing:
-    - step:
-        script:
-        - sh terraform-output.sh
-```
-
-### Complex output types
-
-These are supported by the provider already, however they do get flattened before being made available.
-
-#### Example
-
-Output looking like this
-
-```json
-{
-  "nested_object": {
-    "nested_value": "example"
-  }
-}
-```
-
-Would look like this in the provider
-
-```go
-map[string]interface{}{
-"nested_object.nested_value": "example"
-}
-```
-
-Fortunately this has no impact on how you access the outputs within Terraform like so
-
-```terraform
-output "this" {
-  value = bpr_run.this.outputs.nested_object.nested_value
-}
+---OUTPUTS---
 ```

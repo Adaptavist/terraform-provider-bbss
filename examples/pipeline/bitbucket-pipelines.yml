@@ -1,0 +1,44 @@
+image: terraform:latest
+
+pipelines:
+  default:
+    - step: &test
+        name: test
+        script:
+          # make sure its all formatted nicely
+          - terraform fmt -check
+          # mapping variables so terraform detects them
+          - export TF_VAR_region="us-east-1"
+          - export TF_VAR_bucket_name="some-bucket-name"
+          # run terraform
+          - terraform init --backend-key "${uuidgen}.tfstate"
+          - terraform plan
+  branches:
+    # main will test and release your pipeline to a tag.
+    # we strongly recommend you do this, as you don't want users dealing with upstream changes they didn't expect
+    main:
+      - step: *test
+      - step:
+          name: release
+          image: ghcr.io/go-semantic-release/semantic-release:2.15.1
+          script:
+            - ./semantic-release -r ${BITBUCKET_GIT_HTTP_ORIGIN}
+  custom:
+    # apply is called when teh provider is updating or creating a resource
+    apply:
+      - step:
+          name: apply
+          script:
+            # mapping variables so terraform detects them
+            - export TF_VAR_region=${region}
+            - export TF_VAR_bucket_name=${bucket_name}
+            # run terraform
+            - terraform init --backend-key "${KEY_ID}.tfstate"
+            - terraform apply -auto-approve
+            - sh outputs.sh
+    destroy:
+      - step:
+          name: destroy
+          script:
+            - terraform init --backend-key "${KEY_ID}.tfstate"
+            - terraform destroy -force
